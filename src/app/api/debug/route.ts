@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { MockProvider, GeminiProvider, ModelProvider } from '../../../lib/ai';
 
 export async function POST(request: Request) {
   try {
@@ -11,20 +12,17 @@ export async function POST(request: Request) {
       );
     }
 
-    // Simulate AI processing time
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    // Use Gemini if an API key is present, otherwise fallback to the mock provider
+    const apiKey = process.env.GEMINI_API_KEY;
+    const provider: ModelProvider = apiKey ? new GeminiProvider(apiKey) : new MockProvider();
+    
+    const analysis = await provider.analyzeError(code, error);
 
-    // For Milestone 1, we are using mock data to build out the vertical slice safely and cheaply.
-    const mockResponse = {
-      rootCause: "The code is attempting to access a property on an undefined object, likely because the data hasn't finished loading or wasn't passed correctly.",
-      proposedFix: "Add a null check before accessing the property, or use optional chaining (e.g., `data?.property`).",
-      reviewerVerdict: "Approved. The proposed fix is safe and addresses the immediate crash. Consider also logging a warning if the data is unexpectedly missing."
-    };
-
-    return NextResponse.json(mockResponse);
-  } catch (err) {
+    return NextResponse.json(analysis);
+  } catch (err: any) {
+    console.error("API Error:", err);
     return NextResponse.json(
-      { error: 'Internal Server Error' },
+      { error: err.message || 'Internal Server Error' },
       { status: 500 }
     );
   }
